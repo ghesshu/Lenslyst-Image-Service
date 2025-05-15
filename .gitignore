@@ -128,3 +128,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+.ariana/
+.traces/
+.ariana_saved_traces/
+.vault_secret_key

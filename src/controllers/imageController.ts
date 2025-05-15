@@ -1,0 +1,119 @@
+import { FastifyReply, FastifyRequest } from "fastify";
+import { ImageParams, ImageQuery } from "../routes/type";
+import { validateDimensions, validateParams } from "../utils";
+import { cacheImage, getCachedImage, getFallbackCache, waitForImageInCache, withLock } from "../services/cache/redis";
+import { getS3Object } from "../services/s3";
+import { processImage } from "../services/image";
+import { Readable, pipeline } from "stream";
+import { promisify } from 'util';
+
+import { setImageHeaders, streamBuffer, streamToBuffer } from "../utils/helpers";
+
+const pipelineAsync = promisify(pipeline);
+
+function isReadableStream(obj: unknown): obj is Readable {
+    return obj instanceof Readable || (typeof obj === 'object' && obj !== null && 'pipe' in obj);
+}
+
+
+
+export async function downloadImage(
+req: FastifyRequest<{ Params: ImageParams }>,
+res: FastifyReply
+) {
+    try {
+        const { folder, fileKey } = req.params;
+        if (!validateParams(folder, fileKey)) {
+        return res.status(400).send({ error: 'Invalid folder or file key' });
+        }
+
+        const s3Key = `${folder}/${fileKey}`;
+        const s3Response = await getS3Object(s3Key);
+        if (!s3Response.Body) {
+        return res.status(404).send({ error: 'Image not found' });
+        }
+
+        res.header('Content-Type', s3Response.ContentType || 'image/jpeg');
+        res.header('Content-Disposition', `attachment; filename="${fileKey}"`);
+        
+        // Use promisified pipeline
+        await pipelineAsync(s3Response.Body as Readable, res.raw);
+    } catch (error) {
+        req.log.error(error);
+        res.status(500).send({ error: 'Failed to download image' });
+    }
+}
+
+export async function getImage(
+  req: FastifyRequest<{ Params: ImageParams; Querystring: ImageQuery }>,
+  res: FastifyReply
+) {
+    const { folder, fileKey } = req.params;
+    const { width: w, height: h } = req.query;
+
+    const dimensions = validateDimensions(w, h);
+    if (!dimensions) {
+      return res.status(400).send({ error: 'Invalid dimensions' });
+    }
+
+  try {
+    
+
+
+    const resizedKey = `image:${folder}:${fileKey}:${dimensions.width || 'auto'}x${dimensions.height || 'auto'}`;
+    const originalKey = `image:${folder}:${fileKey}:original`;
+    const s3Key = `${folder}/${fileKey}`;
+
+    // Check resized cache first
+    const cachedResized = await getCachedImage(resizedKey);
+    if (cachedResized) {
+      return streamBuffer(cachedResized, res);
+    }
+
+    // Lock and process (or wait)
+    const result = await withLock(resizedKey, 10, async () => {
+      let originalBuffer = await getCachedImage(originalKey);
+
+      // Fetch from S3 if not in original cache
+      if (!originalBuffer) {
+        const s3Response = await getS3Object(s3Key);
+        // console.log('S3 response:', s3Response);
+
+        if (!s3Response || !s3Response.Body) {
+          console.warn('S3 response is empty or invalid');
+          const fallback = await getFallbackCache(dimensions);
+          if (fallback) return res.send(fallback);
+          return res.status(404).send({ error: 'Image not found' });
+        }
+
+        originalBuffer = await streamToBuffer(s3Response.Body as Readable);
+        await cacheImage(originalKey, Readable.from(originalBuffer));
+      }
+
+      // Process image
+      const { processedStream, cacheStream } = await processImage(Readable.from(originalBuffer), dimensions);
+      await cacheImage(resizedKey, cacheStream);
+
+      res.header('Content-Type', 'image/webp');
+      return res.send(processedStream);
+    });
+
+    // If lock not acquired, poll cache for result
+    if (!result) {
+      const fallback = await waitForImageInCache(resizedKey, 5000, 100);
+      if (fallback) return streamBuffer(fallback, res);
+
+      const fallback01 = await getFallbackCache(dimensions);
+      if (fallback01) return res.send(fallback01);
+
+      return res.status(404).send({ error: 'Image not found' });
+    }
+  } catch (err) {
+
+    const fallback01 = await getFallbackCache(dimensions);
+    if (fallback01) return res.send(fallback01);
+    // return res.status(500).send({ error: 'Internal server error' });
+  }
+}
+
+
