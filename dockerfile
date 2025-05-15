@@ -7,6 +7,7 @@ WORKDIR /app
 # Copy everything
 COPY . .
 
+
 # Install dependencies using Bun
 RUN bun install
 
