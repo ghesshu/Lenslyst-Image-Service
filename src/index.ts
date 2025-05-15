@@ -5,7 +5,7 @@ import fastifyCors from "@fastify/cors";
 
 
 const app = Fastify({
-  //  logger: true 
+   logger: true 
   }); 
 
   // Register CORS plugin
@@ -19,15 +19,15 @@ app.register(imageRoute, {prefix: '/api/image'})
 
 app.get('/', async (req, res) => {
   res.send({ message: 'Hello World' });
-});ß
+});
 
 async function start() {
   try {
     
     loadConfig();
-    await app.listen({ port: 4000 });
-    console.log('Server running on http://localhost:4000');
-    app.log.info('Server running on http://localhost:4000');
+    await app.listen({ port: 8080 });
+    console.log('Server running on http://localhost:8080');
+    app.log.info('Server running on http://localhost:8080');
 
 
   } catch (error) {
