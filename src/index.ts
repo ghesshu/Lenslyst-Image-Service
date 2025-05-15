@@ -25,9 +25,9 @@ async function start() {
   try {
     
     loadConfig();
-    await app.listen({ port: 8080 });
-    console.log('Server running on http://localhost:8080');
-    app.log.info('Server running on http://localhost:8080');
+    await app.listen({ port: 5666 });
+    console.log('Server running on http://localhost:5666');
+    app.log.info('Server running on http://localhost:5666');
 
 
   } catch (error) {
