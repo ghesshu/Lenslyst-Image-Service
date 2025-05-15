@@ -15,7 +15,7 @@ RUN bun install
 # RUN bun run build 
 
 # Expose the desired port
-EXPOSE 8080
+EXPOSE 5666
 
 # Start the application (ensure your entry point uses PORT=8080)
 CMD ["bun", "run", "src/index.ts"]
