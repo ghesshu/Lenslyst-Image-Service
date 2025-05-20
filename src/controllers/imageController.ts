@@ -24,19 +24,23 @@ res: FastifyReply
     try {
         const { folder, fileKey } = req.params;
         if (!validateParams(folder, fileKey)) {
-        return res.status(400).send({ error: 'Invalid folder or file key' });
+            return res.status(400).send({ error: 'Invalid folder or file key' });
         }
 
         const s3Key = `${folder}/${fileKey}`;
         const s3Response = await getS3Object(s3Key);
         if (!s3Response.Body) {
-        return res.status(404).send({ error: 'Image not found' });
+            return res.status(404).send({ error: 'Image not found' });
         }
 
-        res.header('Content-Type', s3Response.ContentType || 'image/jpeg');
-        res.header('Content-Disposition', `attachment; filename="${fileKey}"`);
+        // Force download headers
+        res.header('Content-Type', 'application/octet-stream');
+        res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(fileKey)}"`);
+        res.header('Content-Length', s3Response.ContentLength?.toString() || '0');
+        res.header('Cache-Control', 'no-store');
+        res.header('Pragma', 'no-cache');
         
-        // Use promisified pipeline
+        // Stream the file directly to response
         await pipelineAsync(s3Response.Body as Readable, res.raw);
     } catch (error) {
         req.log.error(error);
@@ -57,10 +61,8 @@ export async function getImage(
     }
 
   try {
-    
 
-
-    const resizedKey = `image:${folder}:${fileKey}:${dimensions.width || 'auto'}x${dimensions.height || 'auto'}`;
+    const resizedKey = `image:${folder}:${fileKey}:${dimensions.width}x${dimensions.height}`;
     const originalKey = `image:${folder}:${fileKey}:original`;
     const s3Key = `${folder}/${fileKey}`;
 

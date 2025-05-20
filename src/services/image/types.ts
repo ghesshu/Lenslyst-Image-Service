@@ -1,4 +1,4 @@
 export interface ImageDimensions {
-    width: number;
-    height: number;
+    width?: number | 'auto';
+    height?: number| 'auto';
 }

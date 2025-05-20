@@ -73,44 +73,17 @@ export async function waitForImageInCache(
   });
 }
 
-// export async function getFallbackCache(dimensions: ImageDimensions ): Promise<Buffer | null> {
-//     try {
-//         const cacheKey = `fallback-img:${dimensions.width || 'auto'}x${dimensions.height || 'auto'}`;
-
-//         // Try to get the cached image first
-//         const cachedImage = await redis.getBuffer(cacheKey);
-//         if (cachedImage) {
-//             return cachedImage;
-//         }
-
-//         // Always use logo-bg.png as the fallback image
-//         const defaultImagePath = path.join(process.cwd(), 'src', 'media', 'logo-bg.png');
-//         const imageBuffer = await fs.readFile(defaultImagePath);
-        
-//         // Process the fallback image with the same dimensions as requested
-//         const processedImage = await sharp(imageBuffer)
-            // .resize({
-            //     width: dimensions.width,
-            //     height: dimensions.height,
-            //     fit: 'cover',
-            //     withoutEnlargement: true
-            // })
-            // .webp({ quality: 80 })
-//             .toBuffer();
-        
-//         // Cache the processed fallback image with dimensions in the key
-
-//         await redis.setex(cacheKey, CACHE_TTL, processedImage);
-        
-//         return processedImage;
-//     } catch (error) {
-//         return null;
-//     }
-// }
-
-export async function getFallbackCache(dimensions: ImageDimensions ): Promise<Readable | null> {
+export async function getFallbackCache(dimensions: ImageDimensions): Promise<Readable | null> {
     try {
-        const cacheKey = `fallback-img:${dimensions.width || 'auto'}x${dimensions.height || 'auto'}`;
+        // Validate dimensions first
+        const width = typeof dimensions.width === 'number' && dimensions.width > 0 
+            ? dimensions.width 
+            : undefined;
+        const height = typeof dimensions.height === 'number' && dimensions.height > 0 
+            ? dimensions.height 
+            : undefined;
+            
+        const cacheKey = `fallback-img:${width || 'auto'}x${height || 'auto'}`;
         console.log('Cache key:', cacheKey);
 
         // Try to get the cached image first
@@ -123,6 +96,8 @@ export async function getFallbackCache(dimensions: ImageDimensions ): Promise<Re
         const defaultImagePath = path.join(process.cwd(), 'src', 'media', 'logo-bg.png');
         const imageBuffer = await fs.readFile(defaultImagePath);
 
+        console.log('test')
+
         // Process the image
         const { processedStream, cacheStream } = await processImage01(Readable.from(imageBuffer), dimensions);
 
@@ -132,7 +107,9 @@ export async function getFallbackCache(dimensions: ImageDimensions ): Promise<Re
         
         return processedStream;
 
-    } catch (error) {
+    } catch (error: any) {
+        // throw error
+        console.log(error)
         return null;
     }
 }
