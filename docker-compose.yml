@@ -3,61 +3,49 @@ version: "3.8"
 services:
   app1:
     build: .
-    expose:
-      - "5666"
     networks:
       - appnet
 
   app2:
     build: .
-    expose:
-      - "5666"
     networks:
       - appnet
 
   app3:
     build: .
-    expose:
-      - "5666"
     networks:
       - appnet
 
   app4:
     build: .
-    expose:
-      - "5666"
     networks:
       - appnet
 
   app5:
     build: .
-    expose:
-      - "5666"
     networks:
       - appnet
 
   app6:
     build: .
-    expose:
-      - "5666"
     networks:
       - appnet
 
-nginx:
-  image: nginx:alpine
-  ports:
-    - "5067:80"
-  volumes:
-    - ./nginx.conf:/etc/nginx/nginx.conf
-  depends_on:
-    - app1
-    - app2
-    - app3
-    - app4
-    - app5
-    - app6
-  networks:
-    - appnet
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "5067:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app1
+      - app2
+      - app3
+      - app4
+      - app5
+      - app6
+    networks:
+      - appnet
 
 networks:
   appnet:
