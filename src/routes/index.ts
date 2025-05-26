@@ -8,6 +8,6 @@ export async function imageRoute(app: FastifyInstance){
     app.get<{Params: ImageParams; Querystring: ImageQuery}>('/view-image', getImage)    
 
     // Download Images
-    app.get<{Querystring: { key?: string }}>('/download/:folder/:fileKey', downloadImage)
+    app.get<{Querystring: { key?: string }}>('/download', downloadImage)
     
 }
