@@ -5,9 +5,9 @@ import { downloadImage, getImage } from "../controllers/imageController";
 export async function imageRoute(app: FastifyInstance){
 
     // Load Images
-    app.get<{Params: ImageParams; Querystring: ImageQuery}>('/:folder/:fileKey', getImage)    
+    app.get<{Params: ImageParams; Querystring: ImageQuery}>('/view-image', getImage)    
 
     // Download Images
-    app.get<{Params: ImageParams}>('/download/:folder/:fileKey', downloadImage)
+    app.get<{Querystring: { key?: string }}>('/download/:folder/:fileKey', downloadImage)
     
 }

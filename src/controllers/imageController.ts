@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { ImageParams, ImageQuery } from "../routes/type";
-import { validateDimensions, validateParams } from "../utils";
+import { validateDimensions } from "../utils";
 import { cacheImage, getCachedImage, getFallbackCache, waitForImageInCache, withLock } from "../services/cache/redis";
 import { getS3Object } from "../services/s3";
 import { processImage } from "../services/image";
@@ -18,27 +18,24 @@ function isReadableStream(obj: unknown): obj is Readable {
 
 
 export async function downloadImage(
-req: FastifyRequest<{ Params: ImageParams }>,
+req: FastifyRequest<{ Querystring: { key?: string } }>,
 res: FastifyReply
 ) {
     try {
-        const { folder, fileKey } = req.params;
-        if (!validateParams(folder, fileKey)) {
-            return res.status(400).send({ error: 'Invalid folder or file key' });
-        }
+        const {key} = req.query;
+        // if (!validateParams(key)) {
+        //     return res.status(400).send({ error: 'Invalid folder or file key' });
+        // }
 
-        const s3Key = `${folder}/${fileKey}`;
+        const s3Key = `${key}`;
         const s3Response = await getS3Object(s3Key);
         if (!s3Response.Body) {
             return res.status(404).send({ error: 'Image not found' });
         }
 
-        // Force download headers
         res.header('Content-Type', 'application/octet-stream');
-        res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(fileKey)}"`);
-        res.header('Content-Length', s3Response.ContentLength?.toString() || '0');
-        res.header('Cache-Control', 'no-store');
-        res.header('Pragma', 'no-cache');
+        res.header('Content-Disposition', `attachment; filename="${key}"`);
+
         
         // Stream the file directly to response
         await pipelineAsync(s3Response.Body as Readable, res.raw);
@@ -52,8 +49,8 @@ export async function getImage(
   req: FastifyRequest<{ Params: ImageParams; Querystring: ImageQuery }>,
   res: FastifyReply
 ) {
-    const { folder, fileKey } = req.params;
-    const { width: w, height: h } = req.query;
+    // const { folder, fileKey } = req.params;
+    const { width: w, height: h, key } = req.query;
 
     const dimensions = validateDimensions(w, h);
     if (!dimensions) {
@@ -62,9 +59,9 @@ export async function getImage(
 
   try {
 
-    const resizedKey = `image:${folder}:${fileKey}:${dimensions.width}x${dimensions.height}`;
-    const originalKey = `image:${folder}:${fileKey}:original`;
-    const s3Key = `${folder}/${fileKey}`;
+    const resizedKey = `image:${key}:${dimensions.width}x${dimensions.height}`;
+    const originalKey = `image:${key}:original`;
+    const s3Key = `${key}`;
 
     // Check resized cache first
     const cachedResized = await getCachedImage(resizedKey);

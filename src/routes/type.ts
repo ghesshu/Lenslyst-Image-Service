@@ -6,5 +6,6 @@ interface ImageParams {
 interface ImageQuery {
     width: string;
     height: string;
+    key: string;
 }
 export { ImageParams, ImageQuery };
