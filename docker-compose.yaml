@@ -1,47 +1,14 @@
 version: "3.8"
 
 services:
-  app1:
+  app:
     build: .
     expose:
       - "5666"
     networks:
       - appnet
-
-  app2:
-    build: .
-    expose:
-      - "5666"
-    networks:
-      - appnet
-
-  app3:
-    build: .
-    expose:
-      - "5666"
-    networks:
-      - appnet
-
-  app4:
-    build: .
-    expose:
-      - "5666"
-    networks:
-      - appnet
-
-  app5:
-    build: .
-    expose:
-      - "5666"
-    networks:
-      - appnet
-
-  app6:
-    build: .
-    expose:
-      - "5666"
-    networks:
-      - appnet
+    deploy:
+      replicas: 6
 
   nginx:
     image: nginx:alpine
@@ -53,12 +20,7 @@ services:
         target: /etc/nginx/nginx.conf
         read_only: true
     depends_on:
-      - app1
-      - app2
-      - app3
-      - app4
-      - app5
-      - app6
+      - app
     networks:
       - appnet
 
