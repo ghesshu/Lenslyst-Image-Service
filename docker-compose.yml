@@ -51,7 +51,31 @@ services:
       - type: bind
         source: ./nginx.conf
         target: /etc/nginx/nginx.conf
-        is_directory: true
+        content: |
+          events {}
+
+          http {
+              upstream app_cluster {
+                  server app1:5666;
+                  server app2:5666;
+                  server app3:5666;
+                  server app4:5666;
+                  server app5:5666;
+                  server app6:5666;
+              }
+
+              server {
+                  listen 80;
+
+                  location / {
+                      proxy_pass http://app_cluster;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
+                  }
+              }
+          }
     depends_on:
       - app1
       - app2
