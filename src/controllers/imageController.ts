@@ -18,32 +18,38 @@ function isReadableStream(obj: unknown): obj is Readable {
 
 
 export async function downloadImage(
-req: FastifyRequest<{ Querystring: { key?: string } }>,
-res: FastifyReply
+  req: FastifyRequest<{ Querystring: { key?: string } }>,
+  res: FastifyReply
 ) {
-    try {
-        const {key} = req.query;
-        // if (!validateParams(key)) {
-        //     return res.status(400).send({ error: 'Invalid folder or file key' });
-        // }
+  try {
+    const { key } = req.query;
 
-        const s3Key = `${key}`;
-        const s3Response = await getS3Object(s3Key);
-        if (!s3Response.Body) {
-            return res.status(404).send({ error: 'Image not found' });
-        }
-
-        res.header('Content-Type', 'application/octet-stream');
-        res.header('Content-Disposition', `attachment; filename="${key}"`);
-
-        
-        // Stream the file directly to response
-        await pipelineAsync(s3Response.Body as Readable, res.raw);
-    } catch (error) {
-        req.log.error(error);
-        res.status(500).send({ error: 'Failed to download image' });
+    if (!key) {
+      return res.status(400).send({ error: 'Missing image key' });
     }
+
+    const s3Key = `${key}`;
+    const s3Response = await getS3Object(s3Key);
+
+    if (!s3Response.Body) {
+      return res.status(404).send({ error: 'Image not found' });
+    }
+
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of s3Response.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+
+    const buffer = Buffer.concat(chunks);
+    const base64String = buffer.toString('base64');
+
+    res.send({ base64: base64String });
+  } catch (error) {
+    req.log.error(error);
+    res.status(500).send({ error: 'Failed to download image' });
+  }
 }
+
 
 export async function getImage(
   req: FastifyRequest<{ Params: ImageParams; Querystring: ImageQuery }>,
