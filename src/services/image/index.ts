@@ -1,12 +1,16 @@
-import sharp from 'sharp';
-import { Readable } from 'stream';
-import { ImageDimensions } from './types';
+import sharp from "sharp";
+import { Readable } from "stream";
+import { ImageDimensions } from "./types";
 
-export async function processImage(stream: Readable, dimensions: ImageDimensions) {
+export async function processImage(
+  stream: Readable,
+  dimensions: ImageDimensions,
+) {
   // Validate dimensions first
   const validatedDims = {
-    width: typeof dimensions.width === 'number' ? dimensions.width : undefined,
-    height: typeof dimensions.height === 'number' ? dimensions.height : undefined
+    width: typeof dimensions.width === "number" ? dimensions.width : undefined,
+    height:
+      typeof dimensions.height === "number" ? dimensions.height : undefined,
   };
 
   const transform = sharp()
@@ -15,7 +19,7 @@ export async function processImage(stream: Readable, dimensions: ImageDimensions
     .resize({
       width: validatedDims.width,
       height: validatedDims.height,
-      fit: 'cover',
+      fit: "cover",
       withoutEnlargement: true,
       fastShrinkOnLoad: true,
     })
@@ -26,51 +30,9 @@ export async function processImage(stream: Readable, dimensions: ImageDimensions
 
   const processedStream = stream.pipe(transform);
 
-  // Optional: clone the processed stream to write it to cache
-  const chunks: Buffer[] = [];
-  processedStream.on('data', chunk => chunks.push(chunk));
-  
-  await new Promise((resolve, reject) => {
-    processedStream.on('end', resolve);
-    processedStream.on('error', reject);
-  });
+  // Clone the processed stream for caching
+  // The original processedStream will be for the response
+  const cacheStream = processedStream.clone();
 
-  const finalBuffer = Buffer.concat(chunks);
-  const responseStream = Readable.from(finalBuffer);
-  const cacheStream = Readable.from(finalBuffer);
-
-  return { processedStream: responseStream, cacheStream };
-}
-
-export async function processImage01(stream: Readable, dimensions: ImageDimensions) {
-
-  const validatedDims = {
-    width: typeof dimensions.width === 'number' ? dimensions.width : undefined,
-    height: typeof dimensions.height === 'number' ? dimensions.height : undefined
-  };
-
-  const transform = sharp()
-    .resize({
-     width: validatedDims.width,
-      height: validatedDims.height,
-      fit: 'cover',
-      withoutEnlargement: true
-    })
-    .webp({ quality: 80 });
-
-  const processedStream = stream.pipe(transform);
-
-  const chunks: Buffer[] = [];
-  processedStream.on('data', chunk => chunks.push(chunk));
-  
-  await new Promise((resolve, reject) => {
-    processedStream.on('end', resolve);
-    processedStream.on('error', reject);
-  });
-
-  const finalBuffer = Buffer.concat(chunks);
-  const responseStream = Readable.from(finalBuffer);
-  const cacheStream = Readable.from(finalBuffer);
-
-  return { processedStream: responseStream, cacheStream };
+  return { processedStream, cacheStream };
 }
